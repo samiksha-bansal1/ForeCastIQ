@@ -1,0 +1,12 @@
+flask==3.0.3
+flask-cors==4.0.1
+python-dotenv==1.0.1
+prophet==1.1.5
+pandas==2.2.2
+numpy==1.26.4
+statsmodels==0.14.2
+google-generativeai==0.7.2
+marshmallow==3.21.3
+pyarrow==16.1.0
+cmdstanpy==1.2.4
+
