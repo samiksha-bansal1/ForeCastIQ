@@ -1,15 +1,6 @@
 """
 routes/scenario.py
 POST /api/scenario
-
-Pipeline:
-  1. Validate request
-  2. Get / clean baseline forecast
-  3. Rule-based scenario engine (scenario_engine.py)
-     - Greetings  → return friendly reply immediately, skip AI
-     - Scenarios  → calculate numeric delta
-  4. AI explanation via gemini_service (Gemini → Groq → static fallback)
-  5. Return clean structured response
 """
 
 import logging
@@ -26,8 +17,6 @@ logger = logging.getLogger(__name__)
 scenario_bp = Blueprint("scenario", __name__)
 
 
-# ── Schemas ───────────────────────────────────────────────────────────────────
-
 class HistoryItemSchema(Schema):
     role    = fields.Str(required=True)
     content = fields.Str(required=True)
@@ -36,19 +25,16 @@ class HistoryItemSchema(Schema):
 class ScenarioRequestSchema(Schema):
     question          = fields.Str(required=True)
     baseline_forecast = fields.List(fields.Dict(), load_default=None)
+    historical        = fields.List(fields.Dict(), load_default=None)
     history           = fields.List(fields.Nested(HistoryItemSchema), load_default=[])
+    data              = fields.List(fields.Dict(), load_default=None)
+    date_column       = fields.Str(load_default="date")
+    value_column      = fields.Str(load_default="value")
+    use_demo          = fields.Bool(load_default=False)
 
-    data         = fields.List(fields.Dict(), load_default=None)
-    date_column  = fields.Str(load_default="date")
-    value_column = fields.Str(load_default="value")
-    use_demo     = fields.Bool(load_default=False)
-
-
-# ── Route ─────────────────────────────────────────────────────────────────────
 
 @scenario_bp.post("/scenario")
 def scenario():
-    # ── Validation ────────────────────────────────────────────────────────────
     try:
         body = ScenarioRequestSchema().load(request.get_json(force=True) or {})
     except ValidationError as exc:
@@ -59,36 +45,31 @@ def scenario():
 
     try:
         baseline_forecast = body.get("baseline_forecast")
+        historical        = body.get("historical")
 
-        # ── Step 1: Get baseline ──────────────────────────────────────────────
         if not baseline_forecast:
             if body["use_demo"] or not body["data"]:
                 df = parse_demo_data()
-                logger.info("Using demo data for scenario baseline")
             else:
                 from utils.csv_parser import parse_csv_payload
-                df = parse_csv_payload(
-                    body["data"],
-                    body["date_column"],
-                    body["value_column"],
-                )
+                df = parse_csv_payload(body["data"], body["date_column"], body["value_column"])
 
             forecast_result   = run_forecast(df, periods=4)
             baseline_forecast = forecast_result["forecast"]
+            historical        = historical or forecast_result.get("historical")
 
-        # ── Step 2: Clean baseline (no negatives) ─────────────────────────────
         cleaned_baseline = [
             {"date": pt.get("date"), "yhat": max(0.0, float(pt.get("yhat", 0)))}
             for pt in baseline_forecast
         ]
 
-        # ── Step 3: Rule-based scenario engine ───────────────────────────────
         scenario_result = apply_scenario(
             baseline_forecast=cleaned_baseline,
             question=body["question"],
+            historical=historical,
         )
 
-        # ── Step 4: Greetings skip AI entirely ───────────────────────────────
+        # Greetings — skip AI
         if scenario_result["is_conversational"]:
             return jsonify({
                 "success": True,
@@ -101,7 +82,7 @@ def scenario():
                 "error": None,
             })
 
-        # ── Step 5: AI explanation for real scenario queries ──────────────────
+        # Real scenario — get AI explanation
         explanation = answer_scenario(
             baseline_forecast=cleaned_baseline,
             question=body["question"],
@@ -120,14 +101,13 @@ def scenario():
                 "delta":             scenario_result["delta"],
                 "summary":           summary,
                 "is_conversational": False,
+                "meta":              scenario_result.get("meta"),
             },
             "error": None,
         })
 
     except ValueError as exc:
-        logger.warning("Scenario validation error: %s", exc)
         return jsonify({"success": False, "data": None, "error": str(exc)}), 422
-
     except Exception:
         logger.exception("Unexpected error in /api/scenario")
         return jsonify({"success": False, "data": None, "error": "An unexpected error occurred."}), 500

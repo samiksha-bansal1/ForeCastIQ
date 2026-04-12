@@ -2,14 +2,22 @@
 services/scenario_engine.py
 Rule-based scenario engine — fast, deterministic, never fails.
 
-Separates conversational messages (greetings, thanks, etc.)
-from actual what-if scenario queries so the chatbot responds naturally
-instead of showing a "+0 units projected" card for "hi".
+Supported scenario types:
+  - increase / decrease by %
+  - continue recent trend
+  - flatten trend
+  - remove recent outliers
+  - greeting / conversational (no chart update)
 """
 
 import re
 import random
-from typing import List, Dict, Any
+import logging
+from typing import List, Dict, Any, Optional
+
+import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 # ── Greeting / conversational detection ──────────────────────────────────────
@@ -34,12 +42,13 @@ _SCENARIO_KEYWORDS = [
     "marketing", "demand", "price", "discount", "promo",
     "what if", "what happens", "scenario", "if i", "if we",
     "week", "%", "percent",
+    "trend", "flatten", "outlier", "outliers", "continue",
 ]
 
 _GREETING_REPLIES = [
     'Hey there! Ask me something like "What if I run a 20% marketing push for 2 weeks?" and I\'ll model it against your baseline forecast.',
     'Hello! I can model any what-if scenario for your sales forecast. Try: "What happens if demand drops 15% in week 2?"',
-    'Hi! Ready to run some scenarios. You could ask: "What if we boost sales 10% for the next 3 weeks?"',
+    'Hi! Ready to run some scenarios. Try: "What if we boost sales 10% for the next 3 weeks?" or "Continue recent trend."',
 ]
 
 _THANKS_REPLIES = [
@@ -55,22 +64,14 @@ _GENERIC_REPLIES = [
 
 
 def _is_conversational(question: str) -> bool:
-    """Return True if the message is a greeting or small talk, not a scenario."""
     q = question.strip().lower()
-
-    # If it contains any scenario keyword it's always a scenario query
     if any(kw in q for kw in _SCENARIO_KEYWORDS):
         return False
-
-    # Match explicit greeting patterns
     for pattern in _GREETING_PATTERNS:
         if re.search(pattern, q, re.IGNORECASE):
             return True
-
-    # Short messages with no scenario keywords are conversational
     if len(q.split()) <= 4:
         return True
-
     return False
 
 
@@ -83,13 +84,32 @@ def _pick_reply(question: str) -> str:
     return random.choice(_GENERIC_REPLIES)
 
 
-# ── Scenario parsing helpers ──────────────────────────────────────────────────
+# ── Special scenario detectors ────────────────────────────────────────────────
+
+def _is_continue_trend(question: str) -> bool:
+    q = question.lower()
+    return bool(re.search(r"continue\s+(recent\s+)?trend", q)) or \
+           bool(re.search(r"(keep|extend|extrapolate)\s+(the\s+)?(recent\s+)?trend", q))
+
+
+def _is_flatten_trend(question: str) -> bool:
+    q = question.lower()
+    return bool(re.search(r"flatten\s+(the\s+)?trend", q)) or \
+           bool(re.search(r"(flat|plateau|stabilise|stabilize|no\s+trend)", q))
+
+
+def _is_remove_outliers(question: str) -> bool:
+    q = question.lower()
+    return bool(re.search(r"remove\s+(recent\s+)?(extreme\s+)?outliers?", q)) or \
+           bool(re.search(r"(clean|strip|exclude)\s+(the\s+)?(extreme\s+)?outliers?", q)) or \
+           bool(re.search(r"outlier.*(remov|clean|strip)", q))
+
+
+# ── Numeric helpers ───────────────────────────────────────────────────────────
 
 def extract_percentage(question: str) -> float:
     match = re.search(r"(\d+(?:\.\d+)?)\s*%", question)
-    if not match:
-        return 0.0
-    return float(match.group(1)) / 100
+    return float(match.group(1)) / 100 if match else 0.0
 
 
 def detect_intent(question: str) -> str:
@@ -104,8 +124,79 @@ def detect_intent(question: str) -> str:
 def extract_duration(question: str) -> int:
     match = re.search(r"(\d+)\s*(week|weeks)", question.lower())
     if match:
-        return min(int(match.group(1)), 4)   # cap at forecast horizon
-    return 4   # default: apply to all weeks
+        return min(int(match.group(1)), 4)
+    return 4
+
+
+# ── Special scenario calculators ──────────────────────────────────────────────
+
+def _apply_continue_trend(
+    baseline_forecast: List[Dict[str, Any]],
+    historical: Optional[List[Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    """Extrapolate the recent linear trend from the last 4 historical points."""
+    if historical and len(historical) >= 4:
+        recent = [float(pt.get("actual", pt.get("y", 0))) for pt in historical[-4:]]
+        # Fit linear slope over last 4 weeks
+        x    = np.arange(len(recent))
+        slope = float(np.polyfit(x, recent, 1)[0])
+    else:
+        slope = 0.0
+
+    scenario_data = []
+    for i, pt in enumerate(baseline_forecast):
+        base = max(0.0, float(pt["yhat"]))
+        scenario_val = max(0.0, base + slope * (i + 1))
+        scenario_data.append({
+            "week":     f"Week {i+1}",
+            "baseline": round(base, 2),
+            "scenario": round(scenario_val, 2),
+        })
+    return scenario_data
+
+
+def _apply_flatten_trend(
+    baseline_forecast: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Replace all forecast values with the mean of the baseline forecast."""
+    yhats = [max(0.0, float(pt["yhat"])) for pt in baseline_forecast]
+    flat  = float(np.mean(yhats))
+
+    scenario_data = []
+    for i, pt in enumerate(baseline_forecast):
+        base = max(0.0, float(pt["yhat"]))
+        scenario_data.append({
+            "week":     f"Week {i+1}",
+            "baseline": round(base, 2),
+            "scenario": round(flat, 2),
+        })
+    return scenario_data
+
+
+def _apply_remove_outliers(
+    baseline_forecast: List[Dict[str, Any]],
+    historical: Optional[List[Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    """Cap outliers in the forecast using rolling median + MAD."""
+    yhats = np.array([max(0.0, float(pt["yhat"])) for pt in baseline_forecast])
+    median = float(np.median(yhats))
+    mad    = float(np.median(np.abs(yhats - median)))
+    threshold = 2.5
+
+    scenario_data = []
+    for i, pt in enumerate(baseline_forecast):
+        base = max(0.0, float(pt["yhat"]))
+        if mad > 0 and abs(base - median) > threshold * mad:
+            cap = median + threshold * mad * np.sign(base - median)
+            scenario_val = max(0.0, cap)
+        else:
+            scenario_val = base
+        scenario_data.append({
+            "week":     f"Week {i+1}",
+            "baseline": round(base, 2),
+            "scenario": round(scenario_val, 2),
+        })
+    return scenario_data
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
@@ -113,19 +204,20 @@ def extract_duration(question: str) -> int:
 def apply_scenario(
     baseline_forecast: List[Dict[str, Any]],
     question: str,
+    historical: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Main scenario engine.
 
-    Returns a dict with:
-        scenario_data     — list of { week, baseline, scenario }
-        delta             — total unit change vs baseline (0 for greetings)
-        summary           — friendly reply for conversational turns; None for scenarios
-        is_conversational — True when the message is a greeting / small talk
-        meta              — intent, percentage, duration (None for conversational)
+    Returns:
+        scenario_data      — list of {week, baseline, scenario}
+        delta              — total unit change vs baseline
+        summary            — friendly reply for greetings; None for scenarios
+        is_conversational  — True for greetings/small-talk
+        meta               — intent metadata (None for conversational)
     """
 
-    # ── Conversational / greeting branch ─────────────────────────────────────
+    # ── Conversational branch ─────────────────────────────────────────────────
     if _is_conversational(question):
         scenario_data = [
             {
@@ -136,14 +228,48 @@ def apply_scenario(
             for i, pt in enumerate(baseline_forecast)
         ]
         return {
-            "scenario_data":    scenario_data,
-            "delta":            0,
-            "summary":          _pick_reply(question),
+            "scenario_data":     scenario_data,
+            "delta":             0,
+            "summary":           _pick_reply(question),
             "is_conversational": True,
-            "meta":             None,
+            "meta":              None,
         }
 
-    # ── Scenario branch ───────────────────────────────────────────────────────
+    # ── Special scenarios ─────────────────────────────────────────────────────
+    if _is_continue_trend(question):
+        scenario_data = _apply_continue_trend(baseline_forecast, historical)
+        delta = int(sum(d["scenario"] - d["baseline"] for d in scenario_data))
+        return {
+            "scenario_data":     scenario_data,
+            "delta":             delta,
+            "summary":           None,
+            "is_conversational": False,
+            "meta":              {"intent": "continue_trend", "percentage": 0, "duration": 4},
+        }
+
+    if _is_flatten_trend(question):
+        scenario_data = _apply_flatten_trend(baseline_forecast)
+        delta = int(sum(d["scenario"] - d["baseline"] for d in scenario_data))
+        return {
+            "scenario_data":     scenario_data,
+            "delta":             delta,
+            "summary":           None,
+            "is_conversational": False,
+            "meta":              {"intent": "flatten_trend", "percentage": 0, "duration": 4},
+        }
+
+    if _is_remove_outliers(question):
+        scenario_data = _apply_remove_outliers(baseline_forecast, historical)
+        delta = int(sum(d["scenario"] - d["baseline"] for d in scenario_data))
+        return {
+            "scenario_data":     scenario_data,
+            "delta":             delta,
+            "summary":           None,
+            "is_conversational": False,
+            "meta":              {"intent": "remove_outliers", "percentage": 0, "duration": 4},
+        }
+
+    # ── Standard increase / decrease branch ──────────────────────────────────
     pct      = extract_percentage(question)
     intent   = detect_intent(question)
     duration = extract_duration(question)
@@ -168,9 +294,9 @@ def apply_scenario(
     delta = int(sum(d["scenario"] - d["baseline"] for d in scenario_data))
 
     return {
-        "scenario_data":    scenario_data,
-        "delta":            delta,
-        "summary":          None,   # filled by gemini_service in the route
+        "scenario_data":     scenario_data,
+        "delta":             delta,
+        "summary":           None,
         "is_conversational": False,
         "meta": {
             "intent":     intent,
