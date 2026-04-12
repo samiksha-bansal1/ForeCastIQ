@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // ✅ NEW
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Menu, X } from "lucide-react";
 
@@ -15,8 +14,6 @@ const navLinks = [
 export function LandingNavbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const router = useRouter(); // ✅ NEW
 
   useEffect(() => {
     const handleScroll = () => {
@@ -55,16 +52,6 @@ export function LandingNavbar() {
 
         {/* Desktop buttons */}
         <div className="hidden md:flex items-center gap-3">
-          {/* ✅ FIXED SIGN IN */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-sm"
-            onClick={() => router.push("/login")}
-          >
-            Sign in
-          </Button>
-
           <Button
             asChild
             size="sm"
@@ -106,19 +93,6 @@ export function LandingNavbar() {
             ))}
 
             <div className="flex flex-col gap-2 pt-4 border-t border-border">
-              {/* ✅ FIXED MOBILE SIGN IN */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="justify-start"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  router.push("/login");
-                }}
-              >
-                Sign in
-              </Button>
-
               <Button
                 asChild
                 size="sm"
