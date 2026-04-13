@@ -3,6 +3,7 @@
 # ForecastIQ™
 
 ### AI Predictive Forecasting Platform
+
 **NatWest Code for Purpose Hackathon — AI Predictive Forecasting Track**
 
 [![Flask](https://img.shields.io/badge/Flask-3.0-black?style=flat-square&logo=flask)](https://flask.palletsprojects.com/)
@@ -34,6 +35,7 @@ Upload any time-series CSV and within seconds get **Prophet-powered forecasts** 
 Built on a **graceful degradation philosophy**: the platform always produces output. With AI keys it delivers rich, contextual Gemini-powered insights. Without them, it falls back seamlessly to local statistical models and deterministic rule-based explanations — zero dependencies, zero failures.
 
 The platform is **completely free and open to use** — no account, no sign-up, no login. Just upload your data and start forecasting.
+Authentication exists in the codebase but is not required to use the platform.
 
 **Intended users:** Business analysts, operations teams, product managers, and anyone working with time-series metrics — sales, traffic, usage, churn — who needs fast, trustworthy, explainable forecasts without a data science background.
 
@@ -46,7 +48,6 @@ The platform is **completely free and open to use** — no account, no sign-up, 
 | **Uncertainty bands** | ✅ Built-in | ❌ Rarely | ✅ Possible |
 | **Plain English output** | ✅ Always | ❌ No | ⚠️ Sometimes |
 | **Cost** | ✅ Free | 💰 Paid | 💰💰 Expensive |
-| **Works offline** | ✅ Yes | ❌ No | ❌ No |
 
 ---
 
@@ -98,7 +99,6 @@ The platform is **completely free and open to use** — no account, no sign-up, 
 |  **Baseline vs Scenario Chart** | Side-by-side bar chart shows exactly how your scenario diverges from the baseline forecast week by week |
 | **Projected Delta** | The net impact of your scenario is calculated and displayed instantly — no spreadsheets needed |
 |  **Multi-Turn Conversation** | Ask follow-up questions and iterate on your scenario in a natural back-and-forth chat |
-|  **Voice Input** | Speak your scenario question hands-free via Web Speech API — supported on Chrome and Edge |
 |  **Rule-Based Engine** | Deterministic modelling for %, trend continuation, flatten, and outlier-removal scenarios — never fails without AI keys |
 |  **Drag-and-Drop CSV Upload** | Browser-side parser with auto column detection and ≥ 8 row validation — no server roundtrip |
 |  **No Sign-Up Required** | Completely open platform — users land directly on the app with no login gate |
@@ -119,6 +119,7 @@ The platform is **completely free and open to use** — no account, no sign-up, 
 
 > **No AI keys? No problem.** Prophet forecasting, anomaly detection, and scenario modelling all run entirely locally. AI keys only add natural-language explanations.
 
+> **No Firebase? No problem.** The app runs fully without authentication. Firebase is only needed if you want the optional login/signup flow.
 ---
 
 ### Step 1 — Clone the repository
@@ -171,12 +172,15 @@ npm install
 
 # Set up environment variables
 cp .env.local.example .env.local
-# Open .env.local and set NEXT_PUBLIC_API_URL if needed
+# NEXT_PUBLIC_API_URL is the only required value.
+# Firebase variables are optional — leave them blank to skip auth entirely.
 
 # Start the development server
 npm run dev
 # → Running on http://localhost:3000
 ```
+
+> **Skipping Firebase:** If you leave the `NEXT_PUBLIC_FIREBASE_*` variables blank, the login and signup pages will not work but all forecasting, anomaly detection, and scenario features are fully accessible at `/app` directly.
 
 ---
 
@@ -203,7 +207,6 @@ Open **http://localhost:3000** in your browser — no sign-up or login required.
 | **Anomaly Detection**| ![Pandas](https://img.shields.io/badge/pandas-150458?style=flat-square&logo=pandas&logoColor=white) ![NumPy](https://img.shields.io/badge/NumPy-013243?style=flat-square&logo=numpy&logoColor=white) | Interpretable, auditable, no black box |
 | **Primary AI** | ![Gemini](https://img.shields.io/badge/Gemini_2.0_Flash-8E75B2?style=flat-square&logo=google-gemini&logoColor=white) | Free tier, 1M token context, fast inference |
 | **AI Fallback** | ![Groq](https://img.shields.io/badge/Groq-F55036?style=flat-square&logo=groq&logoColor=white) ![Llama](https://img.shields.io/badge/Llama_3.1_8B-0466C8?style=flat-square&logo=meta&logoColor=white) | Sub-second latency; free tier |
-| **Voice Input** | ![Web Speech API](https://img.shields.io/badge/Web_Speech_API-E34F26?style=flat-square&logo=html5&logoColor=white) | Native browser speech-to-text; no external dependency |
 | **Validation** | ![Marshmallow](https://img.shields.io/badge/Marshmallow-2C974B?style=flat-square) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) | Schema validation at both API layers |
 | **Testing** | ![Pytest](https://img.shields.io/badge/Pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white) | Standard Python testing; clear test structure |
 
@@ -539,6 +542,10 @@ All POST endpoints accept `"use_demo": true` to skip uploaded CSV data and use t
 | Variable | Required | Description |
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | No (default `http://localhost:5000`) | Flask backend base URL |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Optional | Only needed for login/signup flow |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Optional | e.g. `your-project.firebaseapp.com` |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Optional | Your Firebase project ID |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Optional | From Firebase project settings |
 
 ---
 
@@ -581,8 +588,6 @@ Port 5000 already in use
 **Frontend errors**
 
 ```
-Firebase auth/invalid-api-key
-→ Verify all NEXT_PUBLIC_FIREBASE_* values in .env.local match your Firebase console
 
 Network Error / CORS error in browser console
 → Check FRONTEND_URL in backend/.env matches your Next.js URL exactly (including port)
@@ -672,7 +677,7 @@ timeline
         Prophet + local model fallback  : Forecast pipeline complete
         Rolling z-score anomaly         : Anomaly detection live
         Rule-based + Gemini scenarios   : Scenario chat working
-        Firebase auth                   : Auth fully wired
+        Firebase auth                   : Auth implemented, optional
     section v1.1 — Near Term
         Voice input (Web Speech API)    : Wire VoiceButton to chat
         JWT route protection            : Backend auth guards
