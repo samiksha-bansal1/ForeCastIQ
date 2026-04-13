@@ -317,7 +317,7 @@ forecastiq/
 ### Demo mode (no upload needed)
 
 1. Open **http://localhost:3000** and click **Get Started**
-2. Sign up or log in with any email and password via Firebase Auth
+2. It’s a free platform—no sign-up required. Upload your own data or watch the demo
 3. You land on the **Forecast** tab — the app auto-runs a Prophet forecast on the bundled `demo_sales.csv`
 4. Explore the **Anomalies** and **Scenario** tabs
 
