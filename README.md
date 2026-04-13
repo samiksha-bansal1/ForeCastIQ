@@ -214,8 +214,7 @@ Open **http://localhost:3000** in your browser — no sign-up or login required.
 
 The diagram below shows the full runtime topology: browser, Next.js, Flask, and external AI services.
 
-<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/0626a133-8fea-4e56-9117-5f93b2979a40" />
-
+<img width="1024" height="553" alt="image" src="https://github.com/user-attachments/assets/5ebff499-d664-4858-8656-62334ef22300" />
 
 ---
 
