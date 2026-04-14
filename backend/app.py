@@ -5,6 +5,7 @@ Registers all route blueprints and configures CORS.
 Run with: flask run  (or python app.py for development)
 """
 
+import re
 import logging
 from flask import Flask
 from flask_cors import CORS
@@ -28,8 +29,13 @@ def create_app() -> Flask:
     app.config["SECRET_KEY"] = config.SECRET_KEY
     app.config["DEBUG"] = config.DEBUG
 
-    # Allow requests from the Next.js frontend
-    CORS(app, resources={r"/api/*": {"origins": config.FRONTEND_URL}})
+    # Allow requests from production URL, all Vercel preview URLs, and localhost
+    allowed_origins = [
+        config.FRONTEND_URL,
+        re.compile(r"https://fore-cast-.*\.vercel\.app"),
+        "http://localhost:3000",
+    ]
+    CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
     # Register route blueprints
     app.register_blueprint(forecast_bp,  url_prefix="/api")
