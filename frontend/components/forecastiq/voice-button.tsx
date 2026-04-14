@@ -12,7 +12,7 @@ interface VoiceButtonProps {
 export function VoiceButton({ onTranscript, className }: VoiceButtonProps) {
   const [isSupported, setIsSupported] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+ const [recognition, setRecognition] = useState<any>(null);
 
   useEffect(() => {
     // Check for Web Speech API support
