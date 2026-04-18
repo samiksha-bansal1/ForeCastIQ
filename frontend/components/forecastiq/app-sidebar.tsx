@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { TrendingUp, Search, MessageSquare, Upload } from "lucide-react";
+import { useData } from "@/context/DataContext";
 import { cn } from "@/lib/utils";
 
 const analysisNav = [
@@ -17,6 +18,7 @@ const dataNav = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { isUsingDemo, csvData } = useData();
 
   return (
     <aside className="hidden lg:flex flex-col w-60 border-r border-border bg-card h-screen sticky top-0">
@@ -90,7 +92,9 @@ export function AppSidebar() {
       {/* Bottom section */}
       <div className="p-4 border-t border-border">
         <p className="text-xs text-muted-foreground mb-1">
-          Demo mode — using demo_sales.csv
+          {isUsingDemo
+            ? "Demo mode — using demo_sales.csv"
+            : `Using: ${csvData?.fileName}`}
         </p>
         <Link
           href="/app/upload"

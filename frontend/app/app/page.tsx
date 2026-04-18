@@ -108,7 +108,7 @@ export default function ForecastPage() {
                 ? `${summary.trend_pct >= 0 ? "+" : ""}${summary.trend_pct}%`
                 : "—"
             }
-            trend="upward over 4wks"
+            trend={summary ? (summary.trend_pct >= 0 ? "upward over 4wks" : "downward over 4wks") : "upward over 4wks"}
             trendDirection={
               summary ? (summary.trend_pct >= 0 ? "up" : "down") : "neutral"
             }
@@ -137,7 +137,7 @@ export default function ForecastPage() {
                 ? `${summary.vs_baseline_pct >= 0 ? "+" : ""}${summary.vs_baseline_pct}%`
                 : "—"
             }
-            trend="above moving average"
+            trend={summary ? (summary.vs_baseline_pct >= 0 ? "above moving average" : "below moving average") : "above moving average"}
             trendDirection={
               summary
                 ? summary.vs_baseline_pct >= 0

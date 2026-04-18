@@ -44,6 +44,7 @@ interface DataContextValue {
   csvData: CsvData | null;
   setCsvData: (data: CsvData | null) => void;
   isUsingDemo: boolean;
+  scenarioChatKey: number;
 
   // Forecast
   forecastResult: ForecastResponse | null;
@@ -87,6 +88,7 @@ const DataContext = createContext<DataContextValue | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [csvData, setCsvDataState] = useState<CsvData | null>(null);
+  const [scenarioChatKey, setScenarioChatKey] = useState(0);
 
   const [forecastResult, setForecastResult] = useState<ForecastResponse | null>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
@@ -129,6 +131,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setAnomalyResult(null);
     setScenarioResult(null);
     setCleanedForecastResult(null);
+    setScenarioMessagesState([SCENARIO_SYSTEM_MESSAGE]);
+    setScenarioChartDataState(null);
+    setScenarioTotalDeltaState(0);
+    setScenarioChatKey((prev) => prev + 1);
   }, []);
 
   const fetchForecast = useCallback(async (periods: number = 4) => {
@@ -243,6 +249,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         csvData,
         setCsvData,
         isUsingDemo: csvData === null,
+        scenarioChatKey,
         forecastResult,
         forecastLoading,
         forecastError,

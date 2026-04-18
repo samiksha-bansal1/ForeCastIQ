@@ -62,7 +62,7 @@ def detect_anomalies(df: pd.DataFrame) -> dict:
         is_anomaly = False
         severity = None
 
-        if pd.notna(z):
+        if i >= window and pd.notna(z):
             if abs(z) >= med_t:
                 is_anomaly = True
                 severity = "HIGH" if abs(z) >= high_t else "MEDIUM"

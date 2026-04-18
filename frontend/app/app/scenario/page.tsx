@@ -14,6 +14,7 @@ export default function ScenarioPage() {
     scenarioLoading,
     scenarioError,
     csvData,
+    scenarioChatKey,
     scenarioMessages,
     setScenarioMessages,
     scenarioChartData,
@@ -85,7 +86,7 @@ export default function ScenarioPage() {
   );
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div key={scenarioChatKey} className="flex flex-col min-h-screen">
       {/* ✅ FIXED: dynamic dataset name */}
       <AppTopbar
         title="Scenario Analysis"

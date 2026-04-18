@@ -118,6 +118,7 @@ export function AnomalyChart({
           axisLine={{ stroke: "#E5E5E0" }}
         />
         <YAxis
+          domain={[0, "auto"]}
           tick={{ fontSize: 11, fill: "#6B6B6B" }}
           tickLine={false}
           axisLine={false}
