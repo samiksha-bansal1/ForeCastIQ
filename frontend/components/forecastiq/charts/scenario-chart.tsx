@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { cn } from "@/lib/utils";
 
 interface ScenarioData {
   week: string;
@@ -20,12 +21,14 @@ interface ScenarioChartProps {
   data: ScenarioData[];
   delta?: number;
   isLoading?: boolean;
+  label?: string;
 }
 
 export function ScenarioChart({
   data,
   delta,
   isLoading = false,
+  label,
 }: ScenarioChartProps) {
   if (isLoading) {
     return (
@@ -49,7 +52,9 @@ export function ScenarioChart({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-medium">Scenario Comparison</h3>
+          <h3 className="text-lg font-medium">
+            {label ? label : "Scenario Comparison"}
+          </h3>
           <p className="text-sm text-muted-foreground">
             Baseline forecast vs scenario projection — 4 weeks
           </p>
@@ -130,6 +135,77 @@ export function ScenarioChart({
             />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Comparison Table */}
+      <div className="mt-6 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-2 px-2 font-medium text-muted-foreground">
+                Week
+              </th>
+              <th className="text-right py-2 px-2 font-medium text-muted-foreground">
+                Baseline
+              </th>
+              <th className="text-right py-2 px-2 font-medium text-muted-foreground">
+                Scenario
+              </th>
+              <th className="text-right py-2 px-2 font-medium text-muted-foreground">
+                Difference
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row) => {
+              const diff = row.scenario - row.baseline;
+              return (
+                <tr key={row.week} className="border-b border-border/50">
+                  <td className="py-2 px-2">{row.week}</td>
+                  <td className="py-2 px-2 text-right font-mono">
+                    {row.baseline.toLocaleString()}
+                  </td>
+                  <td className="py-2 px-2 text-right font-mono">
+                    {row.scenario.toLocaleString()}
+                  </td>
+                  <td
+                    className={cn(
+                      "py-2 px-2 text-right font-mono font-medium",
+                      diff >= 0 ? "text-green-600" : "text-red-600"
+                    )}
+                  >
+                    {diff >= 0 ? "+" : ""}
+                    {diff.toLocaleString()}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-border font-medium">
+              <td className="py-2 px-2">Total</td>
+              <td className="py-2 px-2 text-right font-mono">
+                {data
+                  .reduce((s, r) => s + r.baseline, 0)
+                  .toLocaleString()}
+              </td>
+              <td className="py-2 px-2 text-right font-mono">
+                {data
+                  .reduce((s, r) => s + r.scenario, 0)
+                  .toLocaleString()}
+              </td>
+              <td
+                className={cn(
+                  "py-2 px-2 text-right font-mono font-medium",
+                  (delta ?? 0) >= 0 ? "text-green-600" : "text-red-600"
+                )}
+              >
+                {(delta ?? 0) >= 0 ? "+" : ""}
+                {(delta ?? 0).toLocaleString()}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
     </div>
   );

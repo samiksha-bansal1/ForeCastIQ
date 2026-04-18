@@ -19,6 +19,14 @@ interface ScenarioChatProps {
   isLoading?: boolean;
 }
 
+const SUGGESTION_CHIPS = [
+  "Increase 20% for 3 weeks",
+  "Demand drops 15%",
+  "Continue recent trend",
+  "Flatten trend",
+  "Remove outliers",
+];
+
 export function ScenarioChat({
   onScenarioQuery,
   messages,
@@ -26,6 +34,7 @@ export function ScenarioChat({
 }: ScenarioChatProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showSuggestions, setShowSuggestions] = useState(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,15 +44,29 @@ export function ScenarioChat({
     scrollToBottom();
   }, [messages]);
 
+  // Hide suggestions once user has sent their first real message
+  useEffect(() => {
+    if (messages.length > 1) {
+      setShowSuggestions(false);
+    }
+  }, [messages.length]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     onScenarioQuery(input.trim());
     setInput("");
+    setShowSuggestions(false);
   };
 
   const handleVoiceTranscript = (text: string) => {
     onScenarioQuery(text);
+    setShowSuggestions(false);
+  };
+
+  const handleSuggestionClick = (chip: string) => {
+    onScenarioQuery(chip);
+    setShowSuggestions(false);
   };
 
   return (
@@ -56,6 +79,38 @@ export function ScenarioChat({
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Suggestion chips */}
+        {showSuggestions && messages.length <= 1 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {SUGGESTION_CHIPS.map((chip, idx) => {
+              const emoji =
+                idx === 0
+                  ? "📈"
+                  : idx === 1
+                  ? "📉"
+                  : idx === 2
+                  ? "📊"
+                  : idx === 3
+                  ? "⚖️"
+                  : "🧹";
+              return (
+                <button
+                  key={chip}
+                  onClick={() => handleSuggestionClick(chip)}
+                  disabled={isLoading}
+                  className={cn(
+                    "px-3 py-1 text-xs rounded-full border border-border bg-background text-foreground",
+                    "hover:bg-muted hover:border-foreground/50 transition-colors",
+                    "disabled:opacity-50 disabled:cursor-not-allowed"
+                  )}
+                >
+                  {emoji} {chip}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {messages.map((message) => (
           <div
             key={message.id}

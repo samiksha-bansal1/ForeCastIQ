@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { AppTopbar } from "@/components/forecastiq/app-topbar";
 import { ScenarioChart } from "@/components/forecastiq/charts/scenario-chart";
 import { ScenarioChat } from "@/components/forecastiq/scenario-chat";
@@ -20,7 +20,16 @@ export default function ScenarioPage() {
     setScenarioChartData,
     scenarioTotalDelta,
     setScenarioTotalDelta,
+    forecastResult,
+    fetchForecast,
   } = useData();
+
+  // Fetch baseline forecast on page load if not already loaded
+  useEffect(() => {
+    if (forecastResult === null) {
+      fetchForecast();
+    }
+  }, [forecastResult, fetchForecast]);
 
   const buildHistory = useCallback(
     (currentMessages: Message[]): HistoryItem[] =>
@@ -84,12 +93,24 @@ export default function ScenarioPage() {
       />
 
       <div className="flex-1 p-6 lg:p-8 space-y-6">
-        {/* Chart */}
+        {/* Chart - show scenario if available, else show baseline */}
         {scenarioChartData && (
           <ScenarioChart
             data={scenarioChartData}
             delta={scenarioTotalDelta}
             isLoading={scenarioLoading}
+          />
+        )}
+        {!scenarioChartData && forecastResult && (
+          <ScenarioChart
+            data={forecastResult.forecast.map((pt, i) => ({
+              week: `Week ${i + 1}`,
+              baseline: pt.yhat,
+              scenario: pt.yhat,
+            }))}
+            delta={0}
+            isLoading={scenarioLoading}
+            label="Baseline (no scenario applied yet)"
           />
         )}
 
