@@ -5,15 +5,17 @@
  * Wired to real API via DataContext. Shows live Prophet forecast data.
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AppTopbar } from "@/components/forecastiq/app-topbar";
 import { StatCard } from "@/components/forecastiq/stat-card";
 import { InsightCard } from "@/components/forecastiq/insight-card";
 import { ForecastChart } from "@/components/forecastiq/charts/forecast-chart";
 import { DataSummary } from "@/components/forecastiq/data-summary";
 import { useData } from "@/context/DataContext";
+import { cn } from "@/lib/utils";
 
 export default function ForecastPage() {
+  const [periods, setPeriods] = useState(4);
   const {
     forecastResult,
     forecastLoading,
@@ -26,9 +28,9 @@ export default function ForecastPage() {
   // Auto-run forecast on first visit so the chart is pre-populated
   useEffect(() => {
     if (!forecastResult && !forecastLoading) {
-      fetchForecast();
+      fetchForecast(periods);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [periods]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const summary = forecastResult?.summary;
 
@@ -51,13 +53,32 @@ export default function ForecastPage() {
               <p className="text-xs text-red-600 mt-0.5">{forecastError}</p>
             </div>
             <button
-              onClick={fetchForecast}
+              onClick={() => fetchForecast(periods)}
               className="ml-auto text-xs text-red-600 underline hover:text-red-700"
             >
               Try again
             </button>
           </div>
         )}
+
+        {/* Horizon selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Horizon:</span>
+          {[1, 2, 3, 4, 5, 6].map((w) => (
+            <button
+              key={w}
+              onClick={() => { setPeriods(w); fetchForecast(w); }}
+              className={cn(
+                "h-8 w-12 rounded-full text-sm border transition-colors",
+                periods === w
+                  ? "bg-foreground text-background border-foreground"
+                  : "border-border hover:border-foreground/50"
+              )}
+            >
+              {w}w
+            </button>
+          ))}
+        </div>
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
@@ -117,6 +138,7 @@ export default function ForecastPage() {
             historical={forecastResult?.historical}
             forecast={forecastResult?.forecast}
             isDemo={isUsingDemo}
+            periods={periods}
           />
 
           <div className="space-y-6">

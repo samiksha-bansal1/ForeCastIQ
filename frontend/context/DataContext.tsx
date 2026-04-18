@@ -45,7 +45,7 @@ interface DataContextValue {
   forecastResult: ForecastResponse | null;
   forecastLoading: boolean;
   forecastError: string | null;
-  fetchForecast: () => Promise<void>;
+  fetchForecast: (periods?: number) => Promise<void>;
 
   // Anomaly
   anomalyResult: AnomalyResponse | null;
@@ -90,7 +90,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setScenarioResult(null);
   }, []);
 
-  const fetchForecast = useCallback(async () => {
+  const fetchForecast = useCallback(async (periods: number = 4) => {
     setForecastLoading(true);
     setForecastError(null);
     try {
@@ -100,8 +100,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
               data: csvData.rows,
               dateColumn: csvData.dateColumn,
               valueColumn: csvData.valueColumn,
+              periods,
             }
-          : { useDemo: true }
+          : { useDemo: true, periods }
       );
       setForecastResult(result);
     } catch (err) {

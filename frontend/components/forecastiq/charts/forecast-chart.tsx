@@ -26,6 +26,7 @@ interface ForecastChartProps {
   historical?: HistoricalPoint[];
   forecast?: ForecastPoint[];
   isDemo?: boolean;
+  periods?: number;
 }
 
 export function ForecastChart({
@@ -34,6 +35,7 @@ export function ForecastChart({
   historical,
   forecast,
   isDemo = true,
+  periods = 4,
 }: ForecastChartProps) {
   // ── Loading skeleton ────────────────────────────────────────────────────────
   if (isLoading) {
@@ -44,6 +46,7 @@ export function ForecastChart({
             <div className="h-5 w-32 bg-muted rounded animate-pulse mb-2" />
             <div className="h-3 w-56 bg-muted rounded animate-pulse" />
           </div>
+          <div className="h-6 w-24 bg-muted rounded animate-pulse" />
         </div>
         <div className="h-[300px] bg-muted rounded animate-pulse" />
       </div>
@@ -171,7 +174,7 @@ export function ForecastChart({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-medium">4-Week Forecast</h3>
+          <h3 className="text-lg font-medium">{periods}-Week Forecast</h3>
           <p className="text-sm text-muted-foreground">
             Historical actuals + Prophet forecast with confidence bands
           </p>
