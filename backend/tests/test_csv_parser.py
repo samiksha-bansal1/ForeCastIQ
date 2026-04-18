@@ -22,6 +22,16 @@ def _make_rows(n: int = 15) -> list[dict]:
     ]
 
 
+def _make_daily_rows(n: int = 50) -> list[dict]:
+    """Generate n rows of daily CSV data."""
+    from datetime import date, timedelta
+    start = date(2023, 1, 2)
+    return [
+        {"date": (start + timedelta(days=i)).isoformat(), "value": str(10 + i)}
+        for i in range(n)
+    ]
+
+
 class TestParseCsvPayload:
 
     def test_valid_data_returns_dataframe(self):
@@ -71,12 +81,36 @@ class TestParseCsvPayload:
         df = parse_csv_payload(rows, "date", "value")
         assert df["y"].dtype == float
 
+    def test_daily_data_resamples_to_weekly(self):
+        rows = _make_daily_rows(50)  # 50 days ≈ 7-8 weeks
+        df = parse_csv_payload(rows, "date", "value")
+        assert len(df) == 8  # Should be resampled to 8 weekly rows
+        # Check that dates are Mondays (start of week)
+        for _, row in df.iterrows():
+            assert row["ds"].weekday() == 0  # Monday
+
+    def test_monthly_data_logs_warning(self):
+        # This test would require capturing logs, but for now, just ensure it doesn't crash
+        from datetime import date
+        rows = [
+            {"date": date(2023, 1, 1).isoformat(), "value": "100"},
+            {"date": date(2023, 2, 1).isoformat(), "value": "110"},
+            {"date": date(2023, 3, 1).isoformat(), "value": "120"},
+            {"date": date(2023, 4, 1).isoformat(), "value": "130"},
+            {"date": date(2023, 5, 1).isoformat(), "value": "140"},
+            {"date": date(2023, 6, 1).isoformat(), "value": "150"},
+            {"date": date(2023, 7, 1).isoformat(), "value": "160"},
+            {"date": date(2023, 8, 1).isoformat(), "value": "170"},
+        ]
+        df = parse_csv_payload(rows, "date", "value")
+        assert len(df) == 8  # No resampling for monthly
+
 
 class TestParseDemoData:
 
-    def test_returns_52_rows(self):
+    def test_returns_171_rows(self):
         df = parse_demo_data()
-        assert len(df) == 52
+        assert len(df) == 171
 
     def test_has_correct_columns(self):
         df = parse_demo_data()

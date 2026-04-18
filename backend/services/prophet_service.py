@@ -203,7 +203,7 @@ def _build_model(df: pd.DataFrame) -> Prophet:
         changepoint_range       = changepoint_range,
         seasonality_prior_scale = seasonality_prior,
         seasonality_mode        = seasonality_mode,
-        weekly_seasonality      = True,
+        weekly_seasonality      = False,
         yearly_seasonality      = yearly_seasonality,
         daily_seasonality       = False,
         n_changepoints          = n_changepoints,

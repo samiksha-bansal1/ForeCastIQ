@@ -149,6 +149,12 @@ export function ForecastChart({
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="bandFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15}/>
+                <stop offset="95%" stopColor="#2563EB" stopOpacity={0.05}/>
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E0" vertical={false} />
             <XAxis
               dataKey="date"
@@ -175,11 +181,8 @@ export function ForecastChart({
               ]}
             />
             {/* Confidence band */}
-            
-            <Area type="monotone" dataKey="forecastHigh" stroke="none" fill="#DBEAFE" fillOpacity={0.5} legendType="none" isAnimationActive={false} />
-            <Area type="monotone" dataKey="forecastLow"  stroke="none" fill="#FFFFFF"  fillOpacity={1}   legendType="none" isAnimationActive={false} />
-            {/* <Area type="monotone" dataKey="forecastHigh" stroke="none" fill="#DBEAFE" fillOpacity={0.5} />
-            <Area type="monotone" dataKey="forecastLow"  stroke="none" fill="#FFFFFF"  fillOpacity={1}   /> */}
+            <Area type="monotone" dataKey="forecastHigh" stroke="none" fill="url(#bandFill)" fillOpacity={1} legendType="none" isAnimationActive={false} />
+            <Area type="monotone" dataKey="forecastLow" stroke="none" fill="white" fillOpacity={1} legendType="none" isAnimationActive={false} stackId="band" />
             {/* Baseline */}
             <Line type="monotone" dataKey="baseline" stroke="#94A3B8" strokeWidth={1.5}
               strokeDasharray="3 3" dot={false} />

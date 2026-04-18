@@ -62,13 +62,29 @@ def parse_csv_payload(
     if dropped > 0:
         logger.warning("Dropped %d rows with unparseable date or value.", dropped)
 
+    df = df.sort_values("ds").reset_index(drop=True)
+
+    # Auto-detect and resample to weekly if needed
+    if len(df) >= 2:
+        deltas = df["ds"].diff().dropna()
+        median_days = deltas.median().days
+        if median_days < 3:  # daily data → resample to weekly sum
+            df = df.set_index("ds").resample("W-MON")["y"].sum().reset_index()
+            df.columns = ["ds", "y"]
+            df = df.dropna()
+            logger.info("Resampled daily→weekly: %d rows", len(df))
+        elif median_days > 35:  # monthly data
+            logger.warning(
+                "Monthly data detected (%d-day median interval). "
+                "Forecasts will be in weekly steps; consider providing weekly data for best results.",
+                median_days
+            )
+
     if len(df) < 8:
         raise ValueError(
             f"Only {len(df)} valid rows found after cleaning. "
             "At least 8 rows are required for reliable forecasting."
         )
-
-    df = df.sort_values("ds").reset_index(drop=True)
     logger.info("CSV parsed successfully: %d rows, date range %s to %s",
                 len(df), df["ds"].min().date(), df["ds"].max().date())
     return df
@@ -76,22 +92,33 @@ def parse_csv_payload(
 
 def parse_demo_data() -> pd.DataFrame:
     """
-    Generate 52 weeks of demo data for testing without an upload.
-    Returns a DataFrame with columns ['ds', 'y'].
+    Load the real demo_sales.csv shipped with the backend.
+    Falls back to generated data only if the file is missing.
     """
+    import os
+
+    csv_path = os.path.join(os.path.dirname(__file__), "..", "demo_sales.csv")
+    csv_path = os.path.normpath(csv_path)
+
+    if os.path.exists(csv_path):
+        df = pd.read_csv(csv_path)
+        df = df.rename(columns={"date": "ds", "value": "y"})
+        df["ds"] = pd.to_datetime(df["ds"])
+        df["y"]  = pd.to_numeric(df["y"], errors="coerce")
+        df = df.dropna(subset=["ds", "y"])
+        df = df.sort_values("ds").reset_index(drop=True)
+        logger.info(
+            "Loaded demo_sales.csv: %d rows, %s → %s",
+            len(df), df["ds"].min().date(), df["ds"].max().date()
+        )
+        return df
+
+    # Fallback only if file is missing
+    logger.warning("demo_sales.csv not found — generating synthetic data")
     import numpy as np
-
-    rng = np.random.default_rng(42)
-    dates = pd.date_range(start="2023-01-02", periods=52, freq="W-MON")
-    trend = np.linspace(3200, 4800, 52)
-    seasonality = 300 * np.sin(np.linspace(0, 4 * np.pi, 52))
-    noise = rng.normal(0, 120, 52)
-    values = trend + seasonality + noise
-
-    # Inject 3 anomalies
-    values[14] += 1200   # HIGH spike
-    values[31] -= 900    # HIGH drop
-    values[44] += 600    # MEDIUM spike
-
-    df = pd.DataFrame({"ds": dates, "y": values.clip(0)})
+    rng   = np.random.default_rng(42)
+    dates = pd.date_range(start="2022-01-03", periods=171, freq="W-MON")
+    trend = np.linspace(12000, 210000, 171)
+    noise = rng.normal(0, 3000, 171)
+    df = pd.DataFrame({"ds": dates, "y": (trend + noise).clip(0)})
     return df
