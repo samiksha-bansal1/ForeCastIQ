@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { VoiceButton } from "./voice-button";
-import { Menu } from "lucide-react";
+import { Menu, Download } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { logout } from "@/lib/auth";
 import { useRouter } from "next/navigation";
@@ -10,14 +10,20 @@ import { useRouter } from "next/navigation";
 interface AppTopbarProps {
   title: string;
   onRunAnalysis?: () => void;
+  onCompareCleaned?: () => void;
+  onExportCsv?: () => void;
   isLoading?: boolean;
+  isComparing?: boolean;
   dataLabel?: string;
 }
 
 export function AppTopbar({
   title,
   onRunAnalysis,
+  onCompareCleaned,
+  onExportCsv,
   isLoading,
+  isComparing,
   dataLabel,
 }: AppTopbarProps) {
   // ✅ ADD THESE
@@ -55,6 +61,19 @@ export function AppTopbar({
         {/* Voice button */}
         <VoiceButton />
 
+        {/* Export CSV button */}
+        {onExportCsv && (
+          <Button
+            variant="outline"
+            onClick={onExportCsv}
+            className="rounded-full px-4"
+            title="Export CSV"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        )}
+
         {/* Run Analysis button */}
         {onRunAnalysis && (
           <Button
@@ -63,6 +82,18 @@ export function AppTopbar({
             className="bg-foreground hover:bg-foreground/90 text-background rounded-full px-5"
           >
             {isLoading ? "Running..." : "Run Analysis"}
+          </Button>
+        )}
+
+        {/* Compare Cleaned button */}
+        {onCompareCleaned && (
+          <Button
+            variant="outline"
+            onClick={onCompareCleaned}
+            disabled={isComparing}
+            className="rounded-full px-4"
+          >
+            {isComparing ? "Comparing..." : "Compare Cleaned"}
           </Button>
         )}
 

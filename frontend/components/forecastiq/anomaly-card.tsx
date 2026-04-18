@@ -29,10 +29,18 @@ export function AnomalyCard({ anomaly, isLoading = false }: AnomalyCardProps) {
   }
 
   const isHigh = anomaly.severity === "HIGH";
+  const isPositiveDeviation = (anomaly.deviation ?? 0) > 0;
   const borderColor = isHigh ? "border-l-red-600" : "border-l-amber-600";
-  const badgeColor = isHigh
+  const severityBadgeColor = isHigh
     ? "bg-red-100 text-red-700"
     : "bg-amber-100 text-amber-700";
+
+  const urgencyConfig = {
+    immediate: { label: "Act Now", color: "bg-red-100 text-red-700 border border-red-200" },
+    "this week": { label: "This Week", color: "bg-amber-100 text-amber-700 border border-amber-200" },
+    monitor: { label: "Monitor", color: "bg-gray-100 text-gray-600 border border-gray-200" },
+  };
+  const urgency = urgencyConfig[anomaly.urgency] ?? urgencyConfig.monitor;
 
   const formattedDate = new Date(anomaly.date).toLocaleDateString("en-US", {
     weekday: "short",
@@ -41,10 +49,11 @@ export function AnomalyCard({ anomaly, isLoading = false }: AnomalyCardProps) {
     year: "numeric",
   });
 
-  const deviationText =
-    anomaly.deviation > 0
-      ? `${anomaly.deviation}σ above mean`
-      : `${Math.abs(anomaly.deviation)}σ below mean`;
+  const deviationText = anomaly.deviation == null
+    ? "deviation unknown"
+    : anomaly.deviation > 0
+    ? `${anomaly.deviation}σ above mean`
+    : `${Math.abs(anomaly.deviation)}σ below mean`;
 
   return (
     <div
@@ -55,15 +64,32 @@ export function AnomalyCard({ anomaly, isLoading = false }: AnomalyCardProps) {
     >
       {/* Header row */}
       <div className="flex items-center justify-between mb-3">
-        <span className="font-medium">{formattedDate}</span>
-        <span
-          className={cn(
-            "text-[11px] font-medium px-2.5 py-1 rounded-full",
-            badgeColor
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{formattedDate}</span>
+          {anomaly.aiEnriched && (
+            <span className="text-[8px] font-medium bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+              AI
+            </span>
           )}
-        >
-          {anomaly.severity}
-        </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "text-[11px] font-medium px-2.5 py-1 rounded-full",
+              severityBadgeColor
+            )}
+          >
+            {anomaly.severity}
+          </span>
+          <span
+            className={cn(
+              "text-[10px] font-medium px-2 py-0.5 rounded-full",
+              urgency.color
+            )}
+          >
+            {urgency.label}
+          </span>
+        </div>
       </div>
 
       {/* Value row */}

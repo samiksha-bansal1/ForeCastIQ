@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { Download } from "lucide-react";
 import { AppTopbar } from "@/components/forecastiq/app-topbar";
 import { StatCard } from "@/components/forecastiq/stat-card";
 import { InsightCard } from "@/components/forecastiq/insight-card";
@@ -34,11 +35,29 @@ export default function ForecastPage() {
 
   const summary = forecastResult?.summary;
 
+  // Export CSV handler
+  const handleExportCsv = () => {
+    if (!forecastResult?.forecast) return;
+    const headers = ["date", "yhat", "yhat_lower", "yhat_upper", "baseline"];
+    const rows = forecastResult.forecast.map((pt) =>
+      [pt.date, pt.yhat, pt.yhat_lower, pt.yhat_upper, pt.baseline].join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `forecast_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <AppTopbar
         title="Short-Term Forecast"
-        onRunAnalysis={fetchForecast}
+        onRunAnalysis={() => fetchForecast(periods)}
+        onExportCsv={forecastResult ? handleExportCsv : undefined}
         isLoading={forecastLoading}
         dataLabel={`Data: ${csvData?.fileName ?? "demo_sales.csv"}`}
       />
@@ -155,6 +174,7 @@ export default function ForecastPage() {
             />
           </div>
         </div>
+
       </div>
     </div>
   );

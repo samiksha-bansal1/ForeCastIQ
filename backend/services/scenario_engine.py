@@ -121,11 +121,11 @@ def detect_intent(question: str) -> str:
     return "neutral"
 
 
-def extract_duration(question: str) -> int:
+def extract_duration(question: str, max_periods: int = 4) -> int:
     match = re.search(r"(\d+)\s*(week|weeks)", question.lower())
     if match:
-        return min(int(match.group(1)), 4)
-    return 4
+        return min(int(match.group(1)), max_periods)
+    return max_periods
 
 
 # ── Special scenario calculators ──────────────────────────────────────────────
@@ -205,6 +205,7 @@ def apply_scenario(
     baseline_forecast: List[Dict[str, Any]],
     question: str,
     historical: Optional[List[Dict[str, Any]]] = None,
+    max_periods: int = 4,
 ) -> Dict[str, Any]:
     """
     Main scenario engine.
@@ -216,6 +217,7 @@ def apply_scenario(
         is_conversational  — True for greetings/small-talk
         meta               — intent metadata (None for conversational)
     """
+    max_periods = max(1, len(baseline_forecast))
 
     # ── Conversational branch ─────────────────────────────────────────────────
     if _is_conversational(question):
@@ -272,7 +274,13 @@ def apply_scenario(
     # ── Standard increase / decrease branch ──────────────────────────────────
     pct      = extract_percentage(question)
     intent   = detect_intent(question)
-    duration = extract_duration(question)
+    duration = extract_duration(question, max_periods)
+
+    # Check if duration was capped
+    note = None
+    match = re.search(r"(\d+)\s*(week|weeks)", question.lower())
+    if match and int(match.group(1)) > max_periods:
+        note = f"Duration was capped at {max_periods} weeks (forecast horizon limit)"
 
     if intent == "increase":
         multiplier = 1.0 + pct
@@ -302,5 +310,6 @@ def apply_scenario(
             "intent":     intent,
             "percentage": pct,
             "duration":   duration,
+            "note":       note,
         },
     }

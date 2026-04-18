@@ -19,9 +19,11 @@ import {
   runForecast,
   runAnomalyDetection,
   runScenario,
+  runCleanedForecast,
   ForecastResponse,
   AnomalyResponse,
   ScenarioResponse,
+  CleanedForecastResponse,
   ForecastPoint,
   HistoryItem,
 } from "@/lib/api";
@@ -46,6 +48,12 @@ interface DataContextValue {
   forecastLoading: boolean;
   forecastError: string | null;
   fetchForecast: (periods?: number) => Promise<void>;
+
+  // Cleaned Forecast (outlier comparison)
+  cleanedForecastResult: CleanedForecastResponse | null;
+  cleanedForecastLoading: boolean;
+  cleanedForecastError: string | null;
+  fetchCleanedForecast: (periods?: number) => Promise<void>;
 
   // Anomaly
   anomalyResult: AnomalyResponse | null;
@@ -74,6 +82,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState<string | null>(null);
 
+  const [cleanedForecastResult, setCleanedForecastResult] = useState<CleanedForecastResponse | null>(null);
+  const [cleanedForecastLoading, setCleanedForecastLoading] = useState(false);
+  const [cleanedForecastError, setCleanedForecastError] = useState<string | null>(null);
+
   const [anomalyResult, setAnomalyResult] = useState<AnomalyResponse | null>(null);
   const [anomalyLoading, setAnomalyLoading] = useState(false);
   const [anomalyError, setAnomalyError] = useState<string | null>(null);
@@ -88,6 +100,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setForecastResult(null);
     setAnomalyResult(null);
     setScenarioResult(null);
+    setCleanedForecastResult(null);
   }, []);
 
   const fetchForecast = useCallback(async (periods: number = 4) => {
@@ -109,6 +122,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setForecastError(err instanceof Error ? err.message : "Forecast failed.");
     } finally {
       setForecastLoading(false);
+    }
+  }, [csvData]);
+
+  const fetchCleanedForecast = useCallback(async (periods: number = 4) => {
+    setCleanedForecastLoading(true);
+    setCleanedForecastError(null);
+    try {
+      const result = await runCleanedForecast(
+        csvData
+          ? {
+              data: csvData.rows,
+              dateColumn: csvData.dateColumn,
+              valueColumn: csvData.valueColumn,
+              periods,
+            }
+          : { useDemo: true, periods }
+      );
+      setCleanedForecastResult(result);
+    } catch (err) {
+      setCleanedForecastError(err instanceof Error ? err.message : "Cleaned forecast failed.");
+    } finally {
+      setCleanedForecastLoading(false);
     }
   }, [csvData]);
 
@@ -184,6 +219,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         forecastLoading,
         forecastError,
         fetchForecast,
+        cleanedForecastResult,
+        cleanedForecastLoading,
+        cleanedForecastError,
+        fetchCleanedForecast,
         anomalyResult,
         anomalyLoading,
         anomalyError,

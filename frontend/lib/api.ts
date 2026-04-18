@@ -40,9 +40,11 @@ export interface AnomalyPoint {
   date: string;
   value: number;
   severity: "HIGH" | "MEDIUM";
-  deviation: number;
+  deviation: number | null;
   cause: string;
   action: string;
+  urgency: "immediate" | "this week" | "monitor";
+  aiEnriched: boolean;
 }
 
 export interface AnomalyChartPoint {
@@ -83,6 +85,26 @@ export interface ScenarioResponse {
 export interface HistoryItem {
   role: "user" | "assistant";
   content: string;
+}
+
+export interface AdjustedPoint {
+  date: string;
+  original: number;
+  cleaned: number;
+  reason: string;
+}
+
+export interface CleanedForecastSummary {
+  adjusted_count: number;
+  method: string;
+  message: string;
+}
+
+export interface CleanedForecastResponse {
+  original_forecast: ForecastPoint[];
+  cleaned_forecast: ForecastPoint[];
+  adjusted_points: AdjustedPoint[];
+  summary: CleanedForecastSummary;
 }
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -164,6 +186,25 @@ export async function runScenario(params: {
     data: params.data ?? null,
     date_column: params.dateColumn ?? "date",
     value_column: params.valueColumn ?? "value",
+    use_demo: params.useDemo ?? false,
+  });
+}
+
+/**
+ * Run outlier-cleaned forecast comparison.
+ */
+export async function runCleanedForecast(params: {
+  data?: Record<string, string>[];
+  dateColumn?: string;
+  valueColumn?: string;
+  periods?: number;
+  useDemo?: boolean;
+}): Promise<CleanedForecastResponse> {
+  return post<CleanedForecastResponse>("/api/forecast/compare-cleaned", {
+    data: params.data ?? null,
+    date_column: params.dateColumn ?? "date",
+    value_column: params.valueColumn ?? "value",
+    periods: params.periods ?? 4,
     use_demo: params.useDemo ?? false,
   });
 }

@@ -63,10 +63,12 @@ def scenario():
             for pt in baseline_forecast
         ]
 
+        max_periods = len(cleaned_baseline)
         scenario_result = apply_scenario(
             baseline_forecast=cleaned_baseline,
             question=body["question"],
             historical=historical,
+            max_periods=max_periods,
         )
 
         # Greetings — skip AI
