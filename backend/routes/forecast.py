@@ -104,12 +104,17 @@ def forecast():
 
         # ── AI insight ────────────────────────────────────────────────────────
         summary = result["summary"]
+        cv = summary.get("forecast_cv", 10.0)
+        confidence_label = "High" if cv < 5 else ("Low" if cv > 15 else "Medium")
+
         insight = explain_forecast(
             trend_pct=summary.get("trend_pct", 0),
             peak_week=summary.get("peak_week", "Week 1"),
             confidence_range=summary.get("confidence_range", 0),
             vs_baseline_pct=summary.get("vs_baseline_pct", 0),
             periods=periods,
+            forecast_values=result["forecast"],
+            confidence_label=confidence_label,
         )
 
         return jsonify({
@@ -120,8 +125,10 @@ def forecast():
                 "summary":    summary,
                 "insight":    insight,
                 "transparency": {
-                    "model_used":  model_used,
-                    "local_meta":  local_meta,
+                    "model_used":      model_used,
+                    "local_meta":      local_meta,
+                    "forecast_cv":      summary.get("forecast_cv"),
+                    "confidence_label": confidence_label,
                 },
             },
             "error": None,
