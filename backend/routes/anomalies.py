@@ -169,3 +169,53 @@ def anomalies():
         logger.exception("Unexpected error in /api/anomalies")
         return jsonify({"success": False, "data": None,
                         "error": "An unexpected error occurred."}), 500
+
+
+class ExplainRequestSchema(Schema):
+    date         = fields.Str(required=True)
+    value        = fields.Float(required=True)
+    deviation    = fields.Float(required=True)
+    severity     = fields.Str(required=True)
+    upper_band   = fields.Float(load_default=None)
+    lower_band   = fields.Float(load_default=None)
+    rolling_mean = fields.Float(load_default=None)
+
+
+@anomalies_bp.post("/anomalies/explain")
+def explain_anomaly_endpoint():
+    """
+    On-demand AI explanation for a single anomaly.
+    Reuses explain_anomaly() from gemini_service.
+    """
+    try:
+        body = ExplainRequestSchema().load(request.get_json(force=True) or {})
+    except ValidationError as exc:
+        return jsonify({"success": False, "data": None,
+                        "error": str(exc.messages)}), 400
+
+    try:
+        explanation = explain_anomaly(
+            date          = body["date"],
+            value         = body["value"],
+            deviation     = body["deviation"],
+            severity      = body["severity"],
+            expected_low  = body.get("lower_band"),
+            expected_high = body.get("upper_band"),
+            rolling_mean  = body.get("rolling_mean"),
+        )
+
+        response = {
+            "success": True,
+            "data": {
+                "cause":   explanation.get("cause", ""),
+                "action":  explanation.get("action", ""),
+                "urgency": explanation.get("urgency", "monitor"),
+            },
+            "error": None,
+        }
+        return jsonify(response), 200
+
+    except Exception as exc:
+        logger.exception("Error in /api/anomalies/explain")
+        return jsonify({"success": False, "data": None,
+                        "error": str(exc)}), 500

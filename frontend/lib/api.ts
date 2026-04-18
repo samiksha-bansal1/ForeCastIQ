@@ -8,6 +8,20 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export interface Message {
+  id: string;
+  role: "system" | "user" | "assistant";
+  content: string;
+  delta?: number;
+}
+
+export const SCENARIO_SYSTEM_MESSAGE: Message = {
+  id: "system-1",
+  role: "system",
+  content:
+    'Hello! I can model any business scenario for you. Try asking: "What if I run a 20% marketing push for 2 weeks?" or "What happens if demand drops 15% in week 2?"',
+};
+
 export interface HistoricalPoint {
   date: string;
   value: number | null;
@@ -45,6 +59,8 @@ export interface AnomalyPoint {
   action: string;
   urgency: "immediate" | "this week" | "monitor";
   aiEnriched: boolean;
+  upperBand: number | null;
+  lowerBand: number | null;
 }
 
 export interface AnomalyChartPoint {
@@ -164,6 +180,35 @@ export async function runAnomalyDetection(params: {
     date_column: params.dateColumn ?? "date",
     value_column: params.valueColumn ?? "value",
     use_demo: params.useDemo ?? false,
+  });
+}
+
+/**
+ * On-demand AI explanation for a single anomaly.
+ */
+export interface AnomalyExplanation {
+  cause: string;
+  action: string;
+  urgency: "immediate" | "this week" | "monitor";
+}
+
+export async function explainAnomaly(params: {
+  date: string;
+  value: number;
+  deviation: number;
+  severity: "HIGH" | "MEDIUM";
+  upperBand?: number | null;
+  lowerBand?: number | null;
+  rollingMean?: number | null;
+}): Promise<AnomalyExplanation> {
+  return post<AnomalyExplanation>("/api/anomalies/explain", {
+    date:         params.date,
+    value:        params.value,
+    deviation:    params.deviation,
+    severity:     params.severity,
+    upper_band:   params.upperBand ?? null,
+    lower_band:   params.lowerBand ?? null,
+    rolling_mean: params.rollingMean ?? null,
   });
 }
 

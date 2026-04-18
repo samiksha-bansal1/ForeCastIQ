@@ -223,7 +223,7 @@ def answer_scenario(
     baseline_forecast: list[dict[str, Any]],
     question: str,
     history: list[dict[str, str]] | None = None,
-) -> dict[str, Any]:
+) -> dict[str, str]:
     """
     Multi-turn scenario chatbot. Tries Gemini first, Groq second.
 
@@ -234,7 +234,8 @@ def answer_scenario(
                            list of { role: "user"|"assistant", content: str }
 
     Returns:
-        { scenario_data, summary, delta }
+        { summary: str } — Chart data (scenario_data, delta) comes from
+        apply_scenario() in the route, not from this function.
     """
     history = history or []
 
@@ -286,16 +287,8 @@ User's scenario: "{question}"
             logger.warning("Gemini scenario failed, trying Groq: %s", exc)
 
     if gemini_text:
-        # Gemini only returns a summary — build scenario_data as baseline (no adjustment)
-        scenario_data = [
-            {
-                "week":     f"Week {i+1}",
-                "baseline": round(float(pt["yhat"]), 0),
-                "scenario": round(float(pt["yhat"]), 0),
-            }
-            for i, pt in enumerate(baseline_forecast)
-        ]
-        return {"scenario_data": scenario_data, "summary": gemini_text, "delta": 0}
+        # Gemini only returns a summary — chart data comes from apply_scenario()
+        return {"summary": gemini_text}
 
     # ── Groq fallback — returns structured JSON with adjusted weekly values ────
     if _groq_client:
@@ -345,25 +338,13 @@ STRICT RULES:
 
             parsed = json.loads(text)
 
-            scenario_data = []
-            for i, pt in enumerate(baseline_forecast):
-                week_key = f"week{i+1}"
-                scenario_val = parsed.get(week_key, pt["yhat"])
-                scenario_data.append({
-                    "week":     f"Week {i+1}",
-                    "baseline": round(float(pt["yhat"]), 0),
-                    "scenario": round(float(scenario_val), 0),
-                })
-
-            delta = int(parsed.get("delta", sum(
-                d["scenario"] - d["baseline"] for d in scenario_data
-            )))
-            summary = parsed.get("summary", _fallback_scenario_summary(delta))
+            summary = parsed.get("summary", _fallback_scenario_summary(0))
 
             logger.info(
-                "Groq scenario OK: delta=%d, history_turns=%d", delta, len(history)
+                "Groq scenario OK: summary=%d chars, history_turns=%d",
+                len(summary), len(history)
             )
-            return {"scenario_data": scenario_data, "summary": summary, "delta": delta}
+            return {"summary": summary}
 
         except Exception as exc:
             logger.error("Groq scenario also failed: %s", exc)
@@ -390,22 +371,10 @@ def _fallback_action(deviation: float) -> str:
     )
 
 
-def _fallback_scenario(baseline_forecast: list[dict[str, Any]]) -> dict[str, Any]:
-    """Return baseline + 10 % uplift when both AI providers are unavailable."""
-    scenario_data = [
-        {
-            "week":     f"Week {i+1}",
-            "baseline": round(float(pt["yhat"]), 0),
-            "scenario": round(float(pt["yhat"]) * 1.10, 0),
-        }
-        for i, pt in enumerate(baseline_forecast)
-    ]
-    delta = int(sum(d["scenario"] - d["baseline"] for d in scenario_data))
-    return {
-        "scenario_data": scenario_data,
-        "summary":       _fallback_scenario_summary(delta),
-        "delta":         delta,
-    }
+def _fallback_scenario(baseline_forecast: list[dict[str, Any]]) -> dict[str, str]:
+    """Return a static summary when both AI providers are unavailable."""
+    # Chart data comes from apply_scenario() in the route, not from here.
+    return {"summary": _fallback_scenario_summary(0)}
 
 
 def _fallback_scenario_summary(delta: int) -> str:

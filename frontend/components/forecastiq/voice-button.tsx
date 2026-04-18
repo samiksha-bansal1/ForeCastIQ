@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,12 @@ export function VoiceButton({ onTranscript, className }: VoiceButtonProps) {
   const [isSupported, setIsSupported] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
+  const onTranscriptRef = useRef(onTranscript);
+
+  // Keep the ref current without triggering recognition re-creation
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
 
   useEffect(() => {
     // Check for Web Speech API support
@@ -29,7 +35,7 @@ export function VoiceButton({ onTranscript, className }: VoiceButtonProps) {
 
       recognitionInstance.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
-        onTranscript?.(transcript);
+        onTranscriptRef.current?.(transcript);
         setIsListening(false);
       };
 
@@ -43,7 +49,7 @@ export function VoiceButton({ onTranscript, className }: VoiceButtonProps) {
 
       setRecognition(recognitionInstance);
     }
-  }, [onTranscript]);
+  }, []); // Empty deps — recognition created once
 
   const toggleListening = useCallback(() => {
     if (!recognition) return;

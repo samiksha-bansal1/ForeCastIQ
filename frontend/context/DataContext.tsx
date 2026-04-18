@@ -26,6 +26,8 @@ import {
   CleanedForecastResponse,
   ForecastPoint,
   HistoryItem,
+  SCENARIO_SYSTEM_MESSAGE,
+  type Message,
 } from "@/lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -69,6 +71,14 @@ interface DataContextValue {
     question: string,
     history: HistoryItem[]
   ) => Promise<ScenarioResponse | null>;
+
+  // Scenario chat state (persists across navigation)
+  scenarioMessages: Message[];
+  setScenarioMessages: (value: Message[] | ((prev: Message[]) => Message[])) => void;
+  scenarioChartData: { week: string; baseline: number; scenario: number }[] | null;
+  setScenarioChartData: (value: { week: string; baseline: number; scenario: number }[] | null | ((prev: { week: string; baseline: number; scenario: number }[] | null) => { week: string; baseline: number; scenario: number }[] | null)) => void;
+  scenarioTotalDelta: number;
+  setScenarioTotalDelta: (value: number | ((prev: number) => number)) => void;
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -93,6 +103,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [scenarioResult, setScenarioResult] = useState<ScenarioResponse | null>(null);
   const [scenarioLoading, setScenarioLoading] = useState(false);
   const [scenarioError, setScenarioError] = useState<string | null>(null);
+
+  // Scenario chat state (persists across navigation)
+  const [scenarioMessages, setScenarioMessagesState] = useState<Message[]>([SCENARIO_SYSTEM_MESSAGE]);
+  const [scenarioChartData, setScenarioChartDataState] = useState<{ week: string; baseline: number; scenario: number }[] | null>(null);
+  const [scenarioTotalDelta, setScenarioTotalDeltaState] = useState<number>(0);
+
+  // Wrappers that support both direct values and function updaters
+  const setScenarioMessages = useCallback((value: Message[] | ((prev: Message[]) => Message[])) => {
+    setScenarioMessagesState((prev) => value instanceof Function ? value(prev) : value);
+  }, []);
+
+  const setScenarioChartData = useCallback((value: { week: string; baseline: number; scenario: number }[] | null | ((prev: { week: string; baseline: number; scenario: number }[] | null) => { week: string; baseline: number; scenario: number }[] | null)) => {
+    setScenarioChartDataState((prev) => value instanceof Function ? value(prev) : value);
+  }, []);
+
+  const setScenarioTotalDelta = useCallback((value: number | ((prev: number) => number)) => {
+    setScenarioTotalDeltaState((prev) => value instanceof Function ? value(prev) : value);
+  }, []);
 
   const setCsvData = useCallback((data: CsvData | null) => {
     setCsvDataState(data);
@@ -231,6 +259,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         scenarioLoading,
         scenarioError,
         fetchScenario,
+        scenarioMessages,
+        setScenarioMessages,
+        scenarioChartData,
+        setScenarioChartData,
+        scenarioTotalDelta,
+        setScenarioTotalDelta,
       }}
     >
       {children}
